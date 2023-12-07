@@ -2,15 +2,15 @@ import * as React from 'react'
 import {didPropsChange} from './util'
 import { ChartDesigner, CommonConfigOptions, EventManager, Region, SeatingChart, Seatsio } from '@seatsio/seatsio-types'
 
-export type EmbeddableProps<T > = {
-    onRenderStarted?: (chart: SeatingChart | EventManager) => void
+export type EmbeddableProps<T, ChartType> = {
+    onRenderStarted?: (chart: ChartType) => void
     chartJsUrl?: string
     region: Region
 } & T
 
-export default abstract class Embeddable<T extends CommonConfigOptions> extends React.Component<EmbeddableProps<T>> {
+export default abstract class Embeddable<T extends CommonConfigOptions, ChartType extends SeatingChart | EventManager | ChartDesigner> extends React.Component<EmbeddableProps<T, ChartType>> {
     private container: React.RefObject<HTMLDivElement>
-    private chart: SeatingChart
+    private chart: ChartType
     private firstRender: boolean
 
     private static seatsioBundles: { [key: string]: Promise<Seatsio> } = {}
@@ -19,13 +19,13 @@ export default abstract class Embeddable<T extends CommonConfigOptions> extends 
         chartJsUrl: 'https://cdn-{region}.seatsio.net/chart.js'
     }
 
-    constructor(props: EmbeddableProps<T>) {
+    constructor(props: EmbeddableProps<T, ChartType>) {
         super(props);
         this.container = React.createRef()
         this.firstRender = true
     }
 
-    abstract createChart (seatsio: Seatsio, config: T): SeatingChart | EventManager | ChartDesigner
+    abstract createChart (seatsio: Seatsio, config: T): ChartType
 
     componentDidMount () {
         if (!Embeddable.seatsioBundles[this.getChartUrl()] || this.firstRender) {
@@ -34,7 +34,7 @@ export default abstract class Embeddable<T extends CommonConfigOptions> extends 
         }
     }
 
-    componentDidUpdate (prevProps: EmbeddableProps<T>) {
+    componentDidUpdate (prevProps: EmbeddableProps<T, ChartType>) {
         if (didPropsChange(this.props, prevProps) && this.chart) {
             this.destroyChart()
             this.createAndRenderChart()
@@ -49,7 +49,7 @@ export default abstract class Embeddable<T extends CommonConfigOptions> extends 
         const seatsio = await this.loadSeatsio()
         const config = this.extractConfigFromProps()
         config.container = this.container.current
-        this.chart = this.createChart(seatsio, config).render()
+        this.chart = this.createChart(seatsio, config).render() as ChartType;
         if (this.props.onRenderStarted) {
             this.props.onRenderStarted(this.chart)
         }
